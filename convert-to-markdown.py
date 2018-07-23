@@ -7,13 +7,23 @@ from html2text import HTML2Text
 html2text = HTML2Text()
 html2text.unicode_snob = True
 
+ignore_tables = HTML2Text()
+ignore_tables.ignore_tables = True
+
 
 def default_text(field: BeautifulSoup, out):
     for field_value in field.find_all('FieldValue'):
         value = field_value['Value']
         print(f"{html2text.handle(value)}\n", file=out)
 
-default_citation = default_text
+
+def default_citation(field: BeautifulSoup, out):
+    for field_value in field.find_all('FieldValue'):
+        value = field_value['Value']
+
+        print(f"- {ignore_tables.handle(value)}", file=out)
+
+    print(file=out)
 
 
 def html_text(field: BeautifulSoup, out):
