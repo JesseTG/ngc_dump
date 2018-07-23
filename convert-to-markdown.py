@@ -112,7 +112,31 @@ FIELD_NAMES = {
     "Evidence Foundations for and Rating Strength of Recommendations: Rating the Strength of Recommendations": default_picklist_one,
 }
 
-# picklist_one is meant to be a rating from 1 to 5
+
+def default_section(section: BeautifulSoup, out):
+    print(f"# {section['Name']}\n", file=out)
+    for field in section.find_all("Field"):
+        print(f"## {field['Name']}\n", file=out)
+        FIELD_NAMES.get(field["Name"], not_implemented)(field, out)
+
+SECTION_NAMES = {
+    "Benefits/Harms of Implementing the Guideline Recommendations": default_section,
+    "General": default_section,
+    "Contraindications": default_section,
+    "Disclaimer": default_section,
+    "Evidence Supporting the Recommendations": default_section,
+    "Identifying Information and Availability": default_section,
+    "Implementation of the Guideline": default_section,
+    "Institute of Medicine (IOM) National Healthcare Quality Report Categories": default_section,
+    "Methodology": default_section,
+    "NEATS Assessment": default_section,
+    "Qualifying Statements": default_section,
+    "Recommendations": default_section,
+    "Regulatory Alert": default_section,
+    "Scope": default_section,
+}
+
+# TODO: Tighten up the NEATS Assessment
 
 
 def main():
@@ -121,10 +145,7 @@ def main():
         xml = BeautifulSoup(input.read(), "lxml-xml")
         for section in xml.find_all("Section"):
             # For each section in the guideline...
-            print(f"# {section['Name']}\n", file=out)
-            for field in section.find_all("Field"):
-                print(f"## {field['Name']}\n", file=out)
-                FIELD_NAMES.get(field["Name"], not_implemented)(field, out)
+            SECTION_NAMES.get(section['Name'], default_section)(section, out)
 
 
 if __name__ == "__main__":
