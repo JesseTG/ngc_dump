@@ -3,5 +3,4 @@
 mkdir -p markdown
 
 ls -1 xml | \
-    xargs -I {} basename --suffix=.xml {} | \
-    xargs --max-procs=$(nproc) -I {}  ./convert-to-markdown.py xml/{}.xml markdown/{}.md
+    parallel -v -j$(nproc) --noswap 'python3 -OO convert-to-markdown.py --front-matter xml/{} markdown/{= s/ngc-(\d+).xml/\1/g =}.md'
