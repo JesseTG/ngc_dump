@@ -1,38 +1,50 @@
 #!/usr/bin/env python3
 
+import argparse
+from io import IOBase
+import re
 import sys
+
+
 from bs4 import BeautifulSoup
 from html2text import HTML2Text
 
 html2text = HTML2Text()
 html2text.unicode_snob = True
+html2text.bypass_tables = True
+html2text.body_width = 0
 
 ignore_tables = HTML2Text()
+ignore_tables.unicode_snob = True
 ignore_tables.ignore_tables = True
+ignore_tables.single_line_break = True
+ignore_tables.body_width = 0
 
 
-def default_text(field: BeautifulSoup, out):
+def default_text(field: BeautifulSoup, out: IOBase):
     for field_value in field.find_all('FieldValue'):
         value = field_value['Value']
-        print(f"{html2text.handle(value)}\n", file=out)
+        print(f"{html2text.handle(value)}", file=out)
 
 
-def default_citation(field: BeautifulSoup, out):
+def default_citation(field: BeautifulSoup, out: IOBase):
     for field_value in field.find_all('FieldValue'):
-        value = field_value['Value']
+        html = field_value['Value']
+        html = BeautifulSoup(html, "lxml")
+        td = html.find("td")
 
-        print(f"- {ignore_tables.handle(value)}", file=out)
+        print(f"- {ignore_tables.handle(td.prettify()).strip()}", file=out)
 
     print(file=out)
 
 
-def html_text(field: BeautifulSoup, out):
+def html_text(field: BeautifulSoup, out: IOBase):
     for field_value in field.find_all('FieldValue'):
         value = field_value['Value']
         print(f"{value}\n", file=out)
 
 
-def default_picklist_many(field: BeautifulSoup, out):
+def default_picklist_many(field: BeautifulSoup, out: IOBase):
     for field_value in field.find_all('FieldValue'):
         value = field_value['Value']
         print(f"- {value}", file=out)
@@ -46,14 +58,133 @@ default_orglist = default_picklist_many
 default_xref = default_picklist_many
 
 
-def not_implemented(field: BeautifulSoup, out):
+def not_implemented(field: BeautifulSoup, out: IOBase):
     print("NotImplemented\n", file=out)
+
+# TODO: Link internally with the case-insensitive regex "see the .*\"(.+)\" field"
+# TODO: Substitute math and units (cm, pi r2, >>>)
+
+
+def major_recommendations(field: BeautifulSoup, out: IOBase):
+    # TODO: Condence ( spaces inside parens ) to be (sane)
+
+    html = field.find('FieldValue')['Value']
+    html = BeautifulSoup(html, "lxml")
+
+    def should_be_h3(element: BeautifulSoup) -> bool:
+        # Returns true if the element is of either form:
+        # <p><strong><span style="text-decoration: underline;">text</span></strong></p>
+        # <p><span style="text-decoration: underline;"><strong>text</strong></span></p>
+
+        if element.name != 'p':
+            return False
+
+        if any(e.name == 'table' for e in element.parents):
+            return False
+
+        strong = element.find_all("strong")
+        span = element.find_all("span", style="text-decoration: underline;")
+
+        if len(span) != 1 or len(strong) != 1:
+            return False
+
+        return span[0].parent == strong[0] or strong[0].parent == span[0]
+
+    for h3 in html.find_all(should_be_h3):
+        h3.name = "h3"
+        h3.string = h3.text
+
+    def should_be_h4(element: BeautifulSoup) -> bool:
+        # Returns true if the element is of the form:
+        # <p><strong>text</strong></p>
+
+        if element.name != 'p':
+            return False
+
+        if any(e.name == 'table' for e in element.parents):
+            return False
+
+        strong = element.find_all("strong")
+        if len(strong) != 1:
+            return False
+
+        if strong[0].text != element.text:
+            # If the <strong> is a bold segment in the <p> but is not the entire <p>...
+            return False
+
+        return True
+
+    for h4 in html.find_all(should_be_h4):
+        h4.name = "h4"
+        h4.string = h4.text
+
+    def should_be_h5(element: BeautifulSoup) -> bool:
+        # Returns true if the element is of the form:
+        # <p><em>text</em></p>
+
+        if element.name != 'p':
+            return False
+
+        if any(e.name == 'table' for e in element.parents):
+            return False
+
+        em = element.find_all("em")
+        if len(em) != 1:
+            return False
+
+        return True
+
+    for h5 in html.find_all(should_be_h5):
+        h5.name = "h5"
+        h5.string = h5.text
+
+    def should_be_h6(element: BeautifulSoup) -> bool:
+        # Returns true if the element is of the form:
+        # <p><span style="text-decoration: underline;">text</span></p>
+
+        if element.name != 'p':
+            return False
+
+        if any(e.name == 'table' for e in element.parents):
+            return False
+
+        span = element.find_all("span", style="text-decoration: underline;")
+        if len(span) != 1:
+            return False
+
+        strong = element.find_all("strong")
+        # To disambiguate from h4 candidates
+
+        if len(strong) != 0:
+            return False
+
+        return True
+
+    for h6 in html.find_all(should_be_h6):
+        h6.name = "h6"
+        h6.string = h6.text
+
+    # The tables have complicated layouts: they use different row and column spans a lot.
+    # I iterate over the HTML elements because if I pass the whole thing into
+    # html2text.prettify(), the table will get fucked up.
+    children = (html.find("div") or html.find("body")).children
+
+    for i in children:
+        if i.name is not None:
+            # If this is a non-text element...
+            if i.name == 'table':
+                # If this is a table element...
+                print(i.prettify(), file=out, end="")
+                # Just print it out
+            else:
+                print(html2text.handle(i.prettify()), file=out, end="")
+                # Convert it to Markdown
 
 FIELD_NAMES = {
     "Guideline Title": default_text,
     "Bibliographic Source(s)": default_citation,
     "Guideline Status": default_text,
-    "Major Recommendations": default_text,
+    "Major Recommendations": major_recommendations,
     "Clinical Algorithm(s)": default_text,
     "Disease/Condition(s)": default_text,
     "Guideline Category": default_picklist_many,
@@ -123,11 +254,27 @@ FIELD_NAMES = {
 }
 
 
-def default_section(section: BeautifulSoup, out):
+def default_section(section: BeautifulSoup, out: IOBase):
     print(f"# {section['Name']}\n", file=out)
     for field in section.find_all("Field"):
         print(f"## {field['Name']}\n", file=out)
         FIELD_NAMES.get(field["Name"], not_implemented)(field, out)
+
+
+def generate_front_matter(xml: BeautifulSoup, out: IOBase):
+    print("---", file=out)
+    title = xml.find("Field", Name="Guideline Title")
+    if title is not None:
+        html = title.find("FieldValue")["Value"]
+        html = BeautifulSoup(html, "lxml")
+        print(f'title: "{html.text}"', file=out)
+
+    match = re.search(r"ngc-(\d+)\.xml", args.input.name)
+    if match is not None:
+        # If the file is named ngc-{some numbers}.xml...
+        print(f'id: {match[1]}', file=out)
+
+    print("---\n", file=out)
 
 SECTION_NAMES = {
     "Benefits/Harms of Implementing the Guideline Recommendations": default_section,
@@ -148,14 +295,44 @@ SECTION_NAMES = {
 
 # TODO: Tighten up the NEATS Assessment
 
+parser = argparse.ArgumentParser(
+    description='Convert the NGC XMLs to Markdown'
+)
+
+parser.add_argument(
+    "--front-matter",
+    help="Generate YAML front matter for Jekyll",
+    action="store_true"
+)
+
+parser.add_argument(
+    "input",
+    help="Input",
+    type=argparse.FileType("r")
+)
+
+parser.add_argument(
+    "output",
+    help="Output (default stdout)",
+    type=argparse.FileType("w"),
+    default="/dev/stdout",
+    nargs="?"
+)
+
+args = parser.parse_args()
+
 
 def main():
-    with open(sys.argv[1], "r") as input:
-        out = open(sys.argv[2], "w") if (len(sys.argv) >= 3) else sys.stdout
-        xml = BeautifulSoup(input.read(), "lxml-xml")
-        for section in xml.find_all("Section"):
-            # For each section in the guideline...
-            SECTION_NAMES.get(section['Name'], default_section)(section, out)
+
+    xml = BeautifulSoup(args.input.read(), "lxml-xml")
+
+    if args.front_matter:
+        generate_front_matter(xml, args.output)
+
+    for section in xml.find_all("Section"):
+        # For each section in the guideline...
+        SECTION_NAMES.get(section['Name'], default_section)(
+            section, args.output)
 
 
 if __name__ == "__main__":
