@@ -277,6 +277,7 @@ def generate_front_matter(xml: BeautifulSoup, out: IOBase):
     if match is not None:
         # If the file is named ngc-{some numbers}.xml...
         print(f'id: {match[1]}', file=out)
+        print(f'permalink: /:collection/{match[1]}', file=out)
 
     print("---\n", file=out)
 

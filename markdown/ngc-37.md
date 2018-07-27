@@ -1,5 +1,6 @@
 ---
 id: 37
+permalink: /:collection/37
 ---
 
 # General
