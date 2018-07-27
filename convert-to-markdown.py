@@ -261,14 +261,17 @@ def default_section(section: BeautifulSoup, out: IOBase):
         FIELD_NAMES.get(field["Name"], not_implemented)(field, out)
 
 
+QUOTE = r'"'
+ESCAPE_QUOTE = r'\"'
+
+
 def generate_front_matter(xml: BeautifulSoup, out: IOBase):
     print("---", file=out)
     title = xml.find("Field", Name="Guideline Title")
     if title is not None:
         html = title.find("FieldValue")["Value"]
         html = BeautifulSoup(html, "lxml")
-        print(f'title: {html.text}', file=out)
-        # TODO: Might there be newlines in the title?  There could be quotes.
+        print(f'title: "{html.text.replace(QUOTE, ESCAPE_QUOTE)}"', file=out)
 
     match = re.search(r"ngc-(\d+)\.xml", args.input.name)
     if match is not None:
