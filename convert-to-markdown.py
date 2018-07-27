@@ -267,7 +267,8 @@ def generate_front_matter(xml: BeautifulSoup, out: IOBase):
     if title is not None:
         html = title.find("FieldValue")["Value"]
         html = BeautifulSoup(html, "lxml")
-        print(f'title: "{html.text}"', file=out)
+        print(f'title: {html.text}', file=out)
+        # TODO: Might there be newlines in the title?  There could be quotes.
 
     match = re.search(r"ngc-(\d+)\.xml", args.input.name)
     if match is not None:
