@@ -65,12 +65,6 @@ def not_implemented(field: BeautifulSoup, out: IOBase):
 # TODO: Substitute math and units (cm, pi r2, >>>)
 
 
-def major_recommendations(field: BeautifulSoup, out: IOBase):
-    # TODO: Condence ( spaces inside parens ) to be (sane)
-
-    html = field.find('FieldValue')['Value']
-    html = BeautifulSoup(html, "lxml")
-
     def should_be_h3(element: BeautifulSoup) -> bool:
         # Returns true if the element is of either form:
         # <p><strong><span style="text-decoration: underline;">text</span></strong></p>
@@ -90,9 +84,6 @@ def major_recommendations(field: BeautifulSoup, out: IOBase):
 
         return span[0].parent == strong[0] or strong[0].parent == span[0]
 
-    for h3 in html.find_all(should_be_h3):
-        h3.name = "h3"
-        h3.string = h3.text
 
     def should_be_h4(element: BeautifulSoup) -> bool:
         # Returns true if the element is of the form:
@@ -114,9 +105,6 @@ def major_recommendations(field: BeautifulSoup, out: IOBase):
 
         return True
 
-    for h4 in html.find_all(should_be_h4):
-        h4.name = "h4"
-        h4.string = h4.text
 
     def should_be_h5(element: BeautifulSoup) -> bool:
         # Returns true if the element is of the form:
@@ -134,9 +122,6 @@ def major_recommendations(field: BeautifulSoup, out: IOBase):
 
         return True
 
-    for h5 in html.find_all(should_be_h5):
-        h5.name = "h5"
-        h5.string = h5.text
 
     def should_be_h6(element: BeautifulSoup) -> bool:
         # Returns true if the element is of the form:
@@ -159,6 +144,25 @@ def major_recommendations(field: BeautifulSoup, out: IOBase):
             return False
 
         return True
+
+
+def major_recommendations(field: BeautifulSoup, out: IOBase):
+    # TODO: Condence ( spaces inside parens ) to be (sane)
+
+    html = field.find('FieldValue')['Value']
+    html = BeautifulSoup(html, "lxml")
+
+    for h3 in html.find_all(should_be_h3):
+        h3.name = "h3"
+        h3.string = h3.text
+
+    for h4 in html.find_all(should_be_h4):
+        h4.name = "h4"
+        h4.string = h4.text
+
+    for h5 in html.find_all(should_be_h5):
+        h5.name = "h5"
+        h5.string = h5.text
 
     for h6 in html.find_all(should_be_h6):
         h6.name = "h6"
