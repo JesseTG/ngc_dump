@@ -20,6 +20,10 @@ ignore_tables.ignore_tables = True
 ignore_tables.single_line_break = True
 ignore_tables.body_width = 0
 
+RADIOACTIVE_SYMBOL_OLD = "http://guideline.gov/images/image_radioactive.gif"
+# This one was taken offline because it was hosted on the NGC
+RADIOACTIVE_SYMBOL_NEW = "https://assets-cdn.github.com/images/icons/emoji/unicode/2622.png"
+
 
 def default_text(field: BeautifulSoup, out: IOBase):
     for field_value in field.find_all('FieldValue'):
@@ -65,85 +69,85 @@ def not_implemented(field: BeautifulSoup, out: IOBase):
 # TODO: Substitute math and units (cm, pi r2, >>>)
 
 
-    def should_be_h3(element: BeautifulSoup) -> bool:
-        # Returns true if the element is of either form:
-        # <p><strong><span style="text-decoration: underline;">text</span></strong></p>
-        # <p><span style="text-decoration: underline;"><strong>text</strong></span></p>
+def should_be_h3(element: BeautifulSoup) -> bool:
+    # Returns true if the element is of either form:
+    # <p><strong><span style="text-decoration: underline;">text</span></strong></p>
+    # <p><span style="text-decoration: underline;"><strong>text</strong></span></p>
 
-        if element.name != 'p':
-            return False
+    if element.name != 'p':
+        return False
 
-        if any(e.name == 'table' for e in element.parents):
-            return False
+    if any(e.name == 'table' for e in element.parents):
+        return False
 
-        strong = element.find_all("strong")
-        span = element.find_all("span", style="text-decoration: underline;")
+    strong = element.find_all("strong")
+    span = element.find_all("span", style="text-decoration: underline;")
 
-        if len(span) != 1 or len(strong) != 1:
-            return False
+    if len(span) != 1 or len(strong) != 1:
+        return False
 
-        return span[0].parent == strong[0] or strong[0].parent == span[0]
-
-
-    def should_be_h4(element: BeautifulSoup) -> bool:
-        # Returns true if the element is of the form:
-        # <p><strong>text</strong></p>
-
-        if element.name != 'p':
-            return False
-
-        if any(e.name == 'table' for e in element.parents):
-            return False
-
-        strong = element.find_all("strong")
-        if len(strong) != 1:
-            return False
-
-        if strong[0].text != element.text:
-            # If the <strong> is a bold segment in the <p> but is not the entire <p>...
-            return False
-
-        return True
+    return span[0].parent == strong[0] or strong[0].parent == span[0]
 
 
-    def should_be_h5(element: BeautifulSoup) -> bool:
-        # Returns true if the element is of the form:
-        # <p><em>text</em></p>
+def should_be_h4(element: BeautifulSoup) -> bool:
+    # Returns true if the element is of the form:
+    # <p><strong>text</strong></p>
 
-        if element.name != 'p':
-            return False
+    if element.name != 'p':
+        return False
 
-        if any(e.name == 'table' for e in element.parents):
-            return False
+    if any(e.name == 'table' for e in element.parents):
+        return False
 
-        em = element.find_all("em")
-        if len(em) != 1:
-            return False
+    strong = element.find_all("strong")
+    if len(strong) != 1:
+        return False
 
-        return True
+    if strong[0].text != element.text:
+        # If the <strong> is a bold segment in the <p> but is not the entire <p>...
+        return False
+
+    return True
 
 
-    def should_be_h6(element: BeautifulSoup) -> bool:
-        # Returns true if the element is of the form:
-        # <p><span style="text-decoration: underline;">text</span></p>
+def should_be_h5(element: BeautifulSoup) -> bool:
+    # Returns true if the element is of the form:
+    # <p><em>text</em></p>
 
-        if element.name != 'p':
-            return False
+    if element.name != 'p':
+        return False
 
-        if any(e.name == 'table' for e in element.parents):
-            return False
+    if any(e.name == 'table' for e in element.parents):
+        return False
 
-        span = element.find_all("span", style="text-decoration: underline;")
-        if len(span) != 1:
-            return False
+    em = element.find_all("em")
+    if len(em) != 1:
+        return False
 
-        strong = element.find_all("strong")
-        # To disambiguate from h4 candidates
+    return True
 
-        if len(strong) != 0:
-            return False
 
-        return True
+def should_be_h6(element: BeautifulSoup) -> bool:
+    # Returns true if the element is of the form:
+    # <p><span style="text-decoration: underline;">text</span></p>
+
+    if element.name != 'p':
+        return False
+
+    if any(e.name == 'table' for e in element.parents):
+        return False
+
+    span = element.find_all("span", style="text-decoration: underline;")
+    if len(span) != 1:
+        return False
+
+    strong = element.find_all("strong")
+    # To disambiguate from h4 candidates
+
+    if len(strong) != 0:
+        return False
+
+    return True
 
 
 def major_recommendations(field: BeautifulSoup, out: IOBase):
@@ -167,6 +171,13 @@ def major_recommendations(field: BeautifulSoup, out: IOBase):
     for h6 in html.find_all(should_be_h6):
         h6.name = "h6"
         h6.string = h6.text
+
+    for img in html.find_all("img", src=RADIOACTIVE_SYMBOL_OLD):
+        # For each use of the radioactive symbol...
+        # (The <img>'s referred to an icon on guideline.gov, which no longer exists)
+        img["src"] = RADIOACTIVE_SYMBOL_NEW
+        img["width"] = 20
+        img["height"] = 20
 
     # The tables have complicated layouts: they use different row and column spans a lot.
     # I iterate over the HTML elements because if I pass the whole thing into
