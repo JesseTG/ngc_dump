@@ -1,3 +1,4 @@
 requests
 beautifulsoup4
 html2text
+lxml>=4.2.3
